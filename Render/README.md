@@ -6,7 +6,7 @@ This folder has my Batman's Room diorama rendered in Blender.
 
 - `Blender_Project_Files_V1/` - All my Blender files
 - `Final_Render_01.jpg` - The final rendered image
-- `Explanation_Video.mp4` - Video walkthrough (5 min max)
+- `Explanation-Video.mp4` - Video walkthrough (5 min max)
 
 You can also see incremental work in the root `Incremental_Proof/` folder showing my progress from v1 to v9.
 
@@ -30,20 +30,6 @@ Check out the incremental proof images to see how the scene developed over time.
 ## Lighting & Render
 
 Used Cycles with area lights for atmosphere. Camera angle shows the full room layout with the Batman character centered.
-
-**Render Settings:**
-- Engine: Cycles
-- Resolution: [Fill in]
-- Samples: [Fill in]
-- Denoising: Yes/No
-
-## What Worked / What Didn't
-
-**Good:** [Add thoughts on what you're happy with]
-
-**Challenging:** [Discuss any difficulties]
-
-**Next time:** [What you'd improve]
 
 ## Technical Decisions
 

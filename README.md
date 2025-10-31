@@ -17,13 +17,13 @@ A low-poly Batman's room showing his personal space: gaming setup, bed, Batman-s
 Render/
    ├─ Blender_Project_Files_V1/    (Blender files)
    ├─ Final_Render_01.jpg          (Final render)
-   └─ Explanation_Video.mp4
+   └─ Explanation-Video.mp4
 
 Animation/
    ├─ Unreal Project/               (Unreal files)
    ├─ Final_Animation_01.jpg       (Still from animation)
    ├─ NewMap.avi                   (Animation video)
-   └─ Explanation_Video.mp4
+   └─ Explanation-Video.mp4
 
 Incremental_Proof/
    ├─ blender-v1.png through v9.png (Development stages)
