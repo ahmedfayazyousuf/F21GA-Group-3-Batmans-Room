@@ -8,6 +8,8 @@ This folder has my Batman's Room diorama rendered in Blender.
 - `Final_Render_01.jpg` - The final rendered image
 - `Explanation_Video.mp4` - Video walkthrough (5 min max)
 
+You can also see incremental work in the root `Incremental_Proof/` folder showing my progress from v1 to v9.
+
 ## My Scene
 
 Batman's room: bedroom on the left with a bed, blinds showing the Batman symbol, and a Heriot-Watt poster; a gaming setup on the right with monitors, PC, chair, and shelving with props. Low-poly Batman and a dog in the center.
@@ -23,7 +25,7 @@ Total scene: ~42k vertices, ~42k faces.
 - **Dog** - White low-poly companion
 - **Props** - Boxes, speakers, router, etc.
 
-*Add more details about specific modeling techniques, materials, and any early work/sketches*
+Check out the incremental proof images to see how the scene developed over time.
 
 ## Lighting & Render
 

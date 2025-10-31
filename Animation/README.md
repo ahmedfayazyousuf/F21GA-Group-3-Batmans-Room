@@ -4,9 +4,12 @@ Animated fly-through of my Batman's Room in Unreal Engine.
 
 ## What's Here
 
-- `Unreal Project/` - Unreal Engine project files
-- `Video.mp4` - Final animation (under 1 minute)
+- `Unreal Project/` - Unreal Engine project files (F21GA_Group3)
+- `Final_Animation_01.jpg` - Screenshot from the final animation
+- `NewMap.avi` - Final animation video (under 1 minute)
 - `Explanation_Video.mp4` - Video walkthrough (5 min max)
+
+You can also see incremental work in the root `Incremental_Proof/` folder.
 
 ## Exporting from Blender
 
@@ -32,9 +35,9 @@ Created a camera fly-through showing the whole room, pausing at key elements. Us
 
 ## Export Settings
 
-- Format: mp4 (H.264)
+- Format: AVI (from Unreal's Movie Render Queue)
 - Resolution: 1920x1080
-- Used Movie Render Queue
+- Used Movie Render Queue for final output
 
 ## What Worked / What Didn't
 

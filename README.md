@@ -21,10 +21,15 @@ Render/
 
 Animation/
    ├─ Unreal Project/               (Unreal files)
-   ├─ Video.mp4                    (Animation)
+   ├─ Final_Animation_01.jpg       (Still from animation)
+   ├─ NewMap.avi                   (Animation video)
    └─ Explanation_Video.mp4
 
-Interactive/
+Incremental_Proof/
+   ├─ blender-v1.png through v9.png (Development stages)
+   └─ unreal-v1.png                (Unreal setup)
+
+Interactive/                        (Coming for Nov 26 submission)
    ├─ Code_Project/                 (WebGPU code)
    ├─ Video.mp4
    └─ Explanation_Video.mp4
