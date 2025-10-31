@@ -1,0 +1,79 @@
+# Blender
+*.blend1
+*.blend2
+
+# Unreal Engine
+# Intermediate build files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+Plugins/*/Binaries/
+*.tmp
+*.log
+
+# Keep project files but ignore compiled assets
+# Uncomment if Unreal project is too large:
+# *.uasset
+# *.umap
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Git
+*.orig
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+.cache/
+
+# Large media files (if not optimized)
+# *.mp4 (uncomment only if videos are too large and stored elsewhere)
+# *.mov
+# *.avi
+
+# Node modules (if using any JS/TS tools)
+node_modules/
+
+# Compiled files
+*.exe
+*.dll
+*.lib
+
