@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large assets (add to git LFS if needed)
+assets/models/*.obj
+assets/models/*.gltf
+assets/textures/*.png
+assets/textures/*.jpg
+
+# Keep folder structure
+!assets/models/.gitkeep
+!assets/textures/.gitkeep
