@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batman's Room - Interactive WebGPU</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        
+        #canvas:active {
+            cursor: grabbing;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.8;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #ui h3 {
+            margin-bottom: 10px;
+            color: #ffd700;
+            font-size: 16px;
+        }
+        
+        #ui kbd {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-size: 18px;
+        }
+        
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(200, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="loading">Loading Batman's Room...</div>
+    <div id="error"></div>
+    <div id="ui" style="display: none;">
+        <h3>🎮 Controls</h3>
+        <div><kbd>WASD</kbd> Move camera</div>
+        <div><kbd>Mouse</kbd> Look around</div>
+        <div><kbd>Q/E</kbd> Move up/down</div>
+        <div><kbd>L</kbd> Toggle lights</div>
+        <div><kbd>B</kbd> Toggle bloom</div>
+        <div><kbd>R</kbd> Reset camera</div>
+        <div><kbd>ESC</kbd> Release mouse</div>
+    </div>
+    
+    <script type="module" src="main.js"></script>
+</body>
+</html>

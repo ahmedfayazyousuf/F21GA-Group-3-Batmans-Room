@@ -1,0 +1,120 @@
+import { WebGPURenderer } from './renderer.js';
+import { Scene } from './scene.js';
+import { Camera } from './camera.js';
+import { InputHandler } from './input.js';
+import { ModelLoader } from './loader.js';
+
+class App {
+    constructor() {
+        this.canvas = document.getElementById('canvas');
+        this.loadingEl = document.getElementById('loading');
+        this.errorEl = document.getElementById('error');
+        this.uiEl = document.getElementById('ui');
+        
+        this.renderer = null;
+        this.scene = null;
+        this.camera = null;
+        this.input = null;
+        this.animationId = null;
+        this.lastTime = 0;
+        
+        this.init();
+    }
+    
+    async init() {
+        try {
+            // Initialize WebGPU renderer
+            this.renderer = new WebGPURenderer(this.canvas);
+            await this.renderer.init();
+            
+            // Create scene and camera
+            this.scene = new Scene();
+            this.camera = new Camera(this.canvas.width / this.canvas.height);
+            this.camera.position = [0, 2, 5];
+            this.camera.target = [0, 0, 0];
+            
+            // Setup input
+            this.input = new InputHandler(this.canvas);
+            this.input.onMouseMove = (dx, dy) => {
+                this.camera.rotate(dx, dy);
+            };
+            
+            // Load models
+            await this.loadScene();
+            
+            // Hide loading, show UI
+            this.loadingEl.style.display = 'none';
+            this.uiEl.style.display = 'block';
+            
+            // Start render loop
+            this.animate();
+            
+        } catch (error) {
+            console.error('Initialization error:', error);
+            this.showError(error.message);
+        }
+    }
+    
+    async loadScene() {
+        const loader = new ModelLoader();
+        
+        // Load room objects - you'll need to export these from Blender as OBJ or GLTF
+        // For now, we'll create a simple test scene
+        await this.scene.createDefaultScene(this.renderer);
+        
+        console.log('Scene loaded successfully');
+    }
+    
+    animate() {
+        const currentTime = performance.now() / 1000;
+        const deltaTime = currentTime - this.lastTime;
+        this.lastTime = currentTime;
+        
+        // Update camera from input
+        if (this.input) {
+            const moveSpeed = 3.0 * deltaTime;
+            const rotSpeed = 1.5 * deltaTime;
+            
+            if (this.input.keys['w']) this.camera.moveForward(moveSpeed);
+            if (this.input.keys['s']) this.camera.moveBackward(moveSpeed);
+            if (this.input.keys['a']) this.camera.moveLeft(moveSpeed);
+            if (this.input.keys['d']) this.camera.moveRight(moveSpeed);
+            if (this.input.keys['q']) this.camera.moveUp(moveSpeed);
+            if (this.input.keys['e']) this.camera.moveDown(moveSpeed);
+            
+            if (this.input.keys['l']) {
+                this.scene.toggleLights();
+                this.input.keys['l'] = false; // Prevent rapid toggling
+            }
+            
+            if (this.input.keys['b']) {
+                this.renderer.toggleBloom();
+                this.input.keys['b'] = false;
+            }
+            
+            if (this.input.keys['r']) {
+                this.camera.reset();
+                this.input.keys['r'] = false;
+            }
+        }
+        
+        // Update scene animations
+        this.scene.update(deltaTime);
+        
+        // Render
+        this.renderer.render(this.scene, this.camera);
+        
+        this.animationId = requestAnimationFrame(() => this.animate());
+    }
+    
+    showError(message) {
+        this.loadingEl.style.display = 'none';
+        this.errorEl.textContent = `Error: ${message}`;
+        this.errorEl.style.display = 'block';
+    }
+}
+
+// Start app when page loads
+window.addEventListener('load', () => {
+    new App();
+});
