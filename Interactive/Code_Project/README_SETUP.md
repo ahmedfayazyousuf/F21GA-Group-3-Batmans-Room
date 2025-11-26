@@ -38,9 +38,9 @@ npx http-server -p 8000
    - Select your objects
    - File → Export → Wavefront (.obj)
    - Make sure to check:
-     - ✓ Include Normals
-     - ✓ Include UVs
-     - ✓ Apply Modifiers
+     - Include Normals
+     - Include UVs
+     - Apply Modifiers
    - Export each major object separately (bed, desk, batman, etc.)
 
 2. **Place models in `assets/models/` folder:**

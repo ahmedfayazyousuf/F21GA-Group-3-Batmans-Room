@@ -1,14 +1,9 @@
-// Model loader for OBJ and GLTF files
-// This will be extended to load your Blender models
-
 export class ModelLoader {
     constructor() {
         this.meshes = [];
     }
     
     async loadOBJ(url) {
-        // Simple OBJ loader
-        // Format: v x y z (vertex), vn x y z (normal), vt u v (texcoord), f v1/vt1/vn1 v2/vt2/vn2 ...
         const response = await fetch(url);
         const text = await response.text();
         const lines = text.split('\n');
@@ -71,16 +66,15 @@ export class ModelLoader {
                     const t = texcoords[f.vt] || [0, 0];
                     
                     vertexData.push(
-                        v[0], v[1], v[2],  // position
-                        n[0], n[1], n[2],  // normal
-                        t[0], t[1]         // uv
+                        v[0], v[1], v[2],
+                        n[0], n[1], n[2],
+                        t[0], t[1]
                     );
                     vertexMap.set(key, indexCounter++);
                 }
                 faceIndices.push(vertexMap.get(key));
             }
             
-            // Triangulate (assuming quads or triangles)
             if (faceIndices.length === 3) {
                 indices.push(...faceIndices);
             } else if (faceIndices.length === 4) {
@@ -96,9 +90,6 @@ export class ModelLoader {
     }
     
     async loadGLTF(url) {
-        // GLTF loader - more complex, supports materials, textures, etc.
-        // For now, return a placeholder
-        // You can use a library like gltf-transform or implement a full loader
         throw new Error('GLTF loading not yet implemented. Use OBJ format for now.');
     }
 }

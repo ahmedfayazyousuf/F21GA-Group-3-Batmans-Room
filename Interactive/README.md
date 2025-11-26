@@ -242,26 +242,15 @@ Code_Project/
 
 ## What Worked Well
 
-- **WebGPU API:** Modern, efficient, well-designed
-- **Modular architecture:** Easy to extend and modify
-- **OBJ loader:** Simple format, easy to parse
-- **Shader system:** WGSL is readable and powerful
-- **Post-processing:** Framebuffer approach works well
+The WebGPU API turned out to be pretty straightforward once I got the hang of it. Breaking the code into separate modules made it much easier to work on different parts without breaking everything. The OBJ format is simple enough that I could write a basic loader without too much trouble. WGSL shaders are more readable than I expected, and the framebuffer approach for post-processing works nicely.
 
 ## Challenges Encountered
 
-- **Coordinate systems:** Blender (Z-up) vs WebGPU (Y-up) conversion
-- **Shader debugging:** WGSL errors can be cryptic
-- **Uniform buffer layout:** Must match shader structs exactly
-- **Texture loading:** Need to handle async image loading
-- **Material conversion:** Blender materials → WebGPU materials
+Had to deal with coordinate system differences between Blender and WebGPU, which took some trial and error. WGSL shader errors aren't always clear about what's wrong, so debugging took longer than expected. Getting the uniform buffer layouts to match exactly between JavaScript and the shader was tricky - one byte off and nothing works. Texture loading is still something I need to add properly. Converting Blender materials to work with WebGPU required rethinking how materials are structured.
 
 ## Solutions Implemented
 
-- **Math library:** Custom vec3/mat4 for transformations
-- **Error handling:** Try-catch with user-friendly messages
-- **Incremental development:** Started with simple geometry, added features
-- **Testing:** Used simple test scenes before loading complex models
+Built a simple math library for vectors and matrices since I needed full control over transformations. Added proper error handling so the app doesn't just crash silently. Started with basic shapes like boxes and planes, then gradually added more complex features. Tested everything with simple scenes before trying to load the full room.
 
 ## Future Improvements
 
@@ -295,21 +284,13 @@ Code_Project/
 ### Design Decisions
 
 **Why WebGPU over WebGL?**
-- Modern API with better performance
-- Better shader language (WGSL)
-- Required by coursework specification
-- Future-proof technology
+The coursework specifically requires WebGPU, so that was the main reason. But it's also a more modern API with better performance potential, and WGSL is actually easier to work with than GLSL in some ways. It's the direction web graphics is heading anyway.
 
 **Why OBJ format?**
-- Simple to parse and implement
-- Widely supported export format
-- Good for initial development
-- Can extend to GLTF later
+OBJ files are straightforward to parse - just text files with vertices, normals, and faces. Blender exports them easily, and I could write a basic loader without needing external libraries. GLTF would be better long-term since it includes materials and textures, but OBJ was good enough to get started.
 
 **Why custom math library?**
-- Lightweight, no dependencies
-- Full control over operations
-- Easy to debug and modify
+Didn't want to add dependencies for something as basic as matrix math. Having full control means I can debug exactly what's happening, and it's simple enough that writing it myself wasn't too much work.
 
 ### Alternative Approaches
 

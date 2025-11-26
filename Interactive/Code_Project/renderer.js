@@ -7,19 +7,16 @@ export class WebGPURenderer {
         this.depthTexture = null;
         this.bloomEnabled = true;
         
-        // Framebuffer for post-processing
         this.framebuffer = null;
         this.framebufferTexture = null;
         this.framebufferView = null;
     }
     
     async init() {
-        // Check WebGPU support
         if (!navigator.gpu) {
             throw new Error('WebGPU is not supported. Please use Chrome/Edge 113+ or enable WebGPU flag.');
         }
         
-        // Request adapter and device
         const adapter = await navigator.gpu.requestAdapter();
         if (!adapter) {
             throw new Error('Failed to get WebGPU adapter');
@@ -32,17 +29,12 @@ export class WebGPURenderer {
             throw new Error('Failed to get WebGPU context');
         }
         
-        // Get preferred format
         this.format = navigator.gpu.getPreferredCanvasFormat();
         
-        // Configure canvas
         this.resize();
         window.addEventListener('resize', () => this.resize());
         
-        // Create depth texture
         this.createDepthTexture();
-        
-        // Create framebuffer for post-processing
         this.createFramebuffer();
         
         console.log('WebGPU renderer initialized');
@@ -93,7 +85,6 @@ export class WebGPURenderer {
     }
     
     render(scene, camera) {
-        // Configure canvas
         this.context.configure({
             device: this.device,
             format: this.format,
@@ -103,7 +94,6 @@ export class WebGPURenderer {
         
         const commandEncoder = this.device.createCommandEncoder();
         
-        // Render to framebuffer first (for post-processing)
         const framebufferPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 view: this.framebufferView,
@@ -119,11 +109,9 @@ export class WebGPURenderer {
             },
         });
         
-        // Render scene
         scene.render(framebufferPass, camera, this.device);
         framebufferPass.end();
         
-        // Apply post-processing (bloom, tone mapping) and render to canvas
         const finalPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 view: this.context.getCurrentTexture().createView(),
@@ -133,11 +121,9 @@ export class WebGPURenderer {
             }],
         });
         
-        // Apply framebuffer effects
         if (this.bloomEnabled) {
             scene.renderPostProcess(finalPass, this.framebufferView, this.device);
         } else {
-            // Simple copy if bloom disabled
             scene.renderPostProcess(finalPass, this.framebufferView, this.device, false);
         }
         

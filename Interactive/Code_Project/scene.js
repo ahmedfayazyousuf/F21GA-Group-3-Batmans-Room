@@ -9,16 +9,12 @@ export class Scene {
         this.lightsEnabled = true;
         this.time = 0;
         
-        // Post-processing shader
         this.postProcessPipeline = null;
         this.postProcessBindGroup = null;
     }
     
     async createDefaultScene(renderer) {
-        // Create a simple test scene with basic geometry
-        // This will be replaced when you export models from Blender
-        
-        // Create floor
+        const floor = this.createPlane(10, 10);
         const floor = this.createPlane(10, 10);
         floor.transform = mat4.translate(mat4.identity(), [0, 0, 0]);
         floor.material = new Material(renderer.device, {
@@ -28,7 +24,6 @@ export class Scene {
         });
         this.meshes.push(floor);
         
-        // Create walls
         const wall1 = this.createPlane(10, 5);
         wall1.transform = mat4.multiply(
             mat4.rotate(mat4.identity(), Math.PI / 2, [1, 0, 0]),
@@ -41,7 +36,6 @@ export class Scene {
         });
         this.meshes.push(wall1);
         
-        // Create some test objects (these will be replaced with your Blender models)
         const box = this.createBox(1, 1, 1);
         box.transform = mat4.translate(mat4.identity(), [0, 0.5, 0]);
         box.material = new Material(renderer.device, {
@@ -51,7 +45,6 @@ export class Scene {
         });
         this.meshes.push(box);
         
-        // Setup lights
         this.lights = [
             {
                 type: 'directional',
@@ -68,7 +61,6 @@ export class Scene {
             },
         ];
         
-        // Initialize post-processing
         this.initPostProcess(renderer);
     }
     
@@ -148,8 +140,6 @@ export class Scene {
     update(deltaTime) {
         this.time += deltaTime;
         
-        // Animate objects (e.g., rotating LEDs, pulsing lights)
-        // Example: rotate a box (this will be replaced with your actual models)
         if (this.meshes.length > 2) {
             const box = this.meshes[2];
             box.transform = mat4.multiply(
@@ -158,13 +148,10 @@ export class Scene {
             );
         }
         
-        // Animate lights (pulsing effect for LED lights)
         if (this.lights.length > 1) {
-            // Pulsing LED effect
             const pulse = Math.sin(this.time * 3) * 0.4 + 0.6;
             this.lights[1].intensity = 0.5 * pulse;
             
-            // Color shift for LED
             const hue = (this.time * 0.5) % (Math.PI * 2);
             this.lights[1].color = [
                 Math.sin(hue) * 0.5 + 0.5,
@@ -173,7 +160,6 @@ export class Scene {
             ];
         }
         
-        // Animate directional light (day/night cycle simulation)
         if (this.lights.length > 0 && this.lights[0].type === 'directional') {
             const angle = this.time * 0.1;
             this.lights[0].direction = vec3.normalize([
@@ -185,14 +171,12 @@ export class Scene {
     }
     
     render(pass, camera, device) {
-        // Render all meshes
         for (const mesh of this.meshes) {
             mesh.render(pass, camera, this.lights, this.lightsEnabled, device);
         }
     }
     
     initPostProcess(device) {
-        // Post-processing shader for bloom and tone mapping
         const postProcessShader = device.createShaderModule({
             label: 'Post-process shader',
             code: `
@@ -217,13 +201,8 @@ export class Scene {
                 @fragment
                 fn fs(in: VertexOutput) -> @location(0) vec4<f32> {
                     let color = textureSample(inputTexture, inputSampler, in.uv);
-                    
-                    // Tone mapping (Reinhard)
                     let mapped = color.rgb / (color.rgb + vec3<f32>(1.0));
-                    
-                    // Gamma correction
                     let gamma = pow(mapped, vec3<f32>(1.0 / 2.2));
-                    
                     return vec4<f32>(gamma, color.a);
                 }
             `,
@@ -249,7 +228,6 @@ export class Scene {
             this.initPostProcess(device);
         }
         
-        // Create bind group for post-processing
         if (!this.postProcessBindGroup) {
             const sampler = device.createSampler({
                 magFilter: 'linear',

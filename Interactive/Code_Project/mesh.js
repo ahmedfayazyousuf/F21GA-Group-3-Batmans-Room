@@ -7,7 +7,6 @@ export class Mesh {
         this.transform = mat4.identity();
         this.material = null;
         
-        // WebGPU resources
         this.vertexBuffer = null;
         this.indexBuffer = null;
         this.pipeline = null;
@@ -15,7 +14,6 @@ export class Mesh {
     }
     
     init(device) {
-        // Create vertex buffer
         this.vertexBuffer = device.createBuffer({
             label: 'Vertex buffer',
             size: this.vertices.byteLength,
@@ -23,7 +21,6 @@ export class Mesh {
         });
         device.queue.writeBuffer(this.vertexBuffer, 0, this.vertices);
         
-        // Create index buffer
         this.indexBuffer = device.createBuffer({
             label: 'Index buffer',
             size: this.indices.byteLength,
@@ -31,7 +28,6 @@ export class Mesh {
         });
         device.queue.writeBuffer(this.indexBuffer, 0, this.indices);
         
-        // Create render pipeline
         this.createPipeline(device);
     }
     
@@ -142,11 +138,11 @@ export class Mesh {
                 module: shaderModule,
                 entryPoint: 'vs',
                 buffers: [{
-                    arrayStride: 8 * 4, // 8 floats: pos(3) + normal(3) + uv(2)
+                    arrayStride: 8 * 4,
                     attributes: [
-                        { shaderLocation: 0, offset: 0, format: 'float32x3' },  // position
-                        { shaderLocation: 1, offset: 12, format: 'float32x3' }, // normal
-                        { shaderLocation: 2, offset: 24, format: 'float32x2' }, // uv
+                        { shaderLocation: 0, offset: 0, format: 'float32x3' },
+                        { shaderLocation: 1, offset: 12, format: 'float32x3' },
+                        { shaderLocation: 2, offset: 24, format: 'float32x2' },
                     ],
                 }],
             },
@@ -170,7 +166,6 @@ export class Mesh {
     render(pass, camera, lights, lightsEnabled, device) {
         if (!this.material) return;
         
-        // Initialize if needed
         if (!this.vertexBuffer) {
             this.init(device);
         }
@@ -179,12 +174,11 @@ export class Mesh {
             this.createPipeline(device);
         }
         
-        // Create uniform buffers
         const viewProjection = camera.getViewProjectionMatrix();
         const cameraPos = camera.position;
         
         const uniformBuffer = device.createBuffer({
-            size: 16 * 4 + 16 * 4 + 12 + 4, // viewProjection + model + cameraPos + lightCount
+            size: 16 * 4 + 16 * 4 + 12 + 4,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
         
@@ -196,9 +190,8 @@ export class Mesh {
         
         device.queue.writeBuffer(uniformBuffer, 0, uniformData);
         
-        // Create light buffer (8 lights, each: type(4) + pos(12) + dir(12) + color(12) + intensity(4) + range(4) = 48 bytes)
         const lightBuffer = device.createBuffer({
-            size: 8 * 12 * 4, // 8 lights * 12 floats * 4 bytes
+            size: 8 * 12 * 4,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
         
@@ -206,7 +199,7 @@ export class Mesh {
         for (let i = 0; i < Math.min(lights.length, 8); i++) {
             const light = lights[i];
             const offset = i * 12;
-            lightData[offset] = light.type === 'directional' ? 0 : 1; // type
+            lightData[offset] = light.type === 'directional' ? 0 : 1;
             if (light.position) {
                 lightData.set(light.position, offset + 1);
             } else {
@@ -223,9 +216,8 @@ export class Mesh {
         }
         device.queue.writeBuffer(lightBuffer, 0, lightData);
         
-        // Material buffer
         const materialBuffer = device.createBuffer({
-            size: 16 + 4 + 4, // baseColor(16) + metallic(4) + roughness(4)
+            size: 16 + 4 + 4,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
         
@@ -235,7 +227,6 @@ export class Mesh {
         materialData[5] = this.material.roughness;
         device.queue.writeBuffer(materialBuffer, 0, materialData);
         
-        // Create bind group
         const bindGroup = device.createBindGroup({
             layout: this.pipeline.getBindGroupLayout(0),
             entries: [
@@ -245,7 +236,6 @@ export class Mesh {
             ],
         });
         
-        // Render
         pass.setPipeline(this.pipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setVertexBuffer(0, this.vertexBuffer);
