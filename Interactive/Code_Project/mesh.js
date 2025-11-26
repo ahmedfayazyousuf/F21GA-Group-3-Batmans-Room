@@ -43,18 +43,31 @@ export class Mesh {
                 };
                 
                 struct Light {
-                    type: u32,
+                    lightType: u32,
+                    _padding1: u32,
+                    _padding2: u32,
+                    _padding3: u32,
                     position: vec3<f32>,
+                    _padding4: f32,
                     direction: vec3<f32>,
+                    _padding5: f32,
                     color: vec3<f32>,
+                    _padding6: f32,
                     intensity: f32,
+                    _padding7: f32,
+                    _padding8: f32,
+                    _padding9: f32,
                     range: f32,
+                    _padding10: f32,
+                    _padding11: f32,
+                    _padding12: f32,
                 };
                 
                 struct Material {
                     baseColor: vec4<f32>,
                     metallic: f32,
                     roughness: f32,
+                    _padding: f32,
                 };
                 
                 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -93,9 +106,9 @@ export class Mesh {
                         var lightDir: vec3<f32>;
                         var attenuation: f32 = 1.0;
                         
-                        if (light.type == 0u) { // Directional
+                        if (light.lightType == 0u) {
                             lightDir = normalize(-light.direction);
-                        } else { // Point
+                        } else {
                             let toLight = light.position - worldPos;
                             let dist = length(toLight);
                             lightDir = normalize(toLight);
@@ -164,7 +177,10 @@ export class Mesh {
     }
     
     render(pass, camera, lights, lightsEnabled, device) {
-        if (!this.material) return;
+        if (!this.material) {
+            console.warn('Mesh has no material');
+            return;
+        }
         
         if (!this.vertexBuffer) {
             this.init(device);
@@ -177,12 +193,13 @@ export class Mesh {
         const viewProjection = camera.getViewProjectionMatrix();
         const cameraPos = camera.position;
         
+        const uniformBufferSize = 16 * 4 + 16 * 4 + 16 + 16;
         const uniformBuffer = device.createBuffer({
-            size: 16 * 4 + 16 * 4 + 12 + 4,
+            size: uniformBufferSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
         
-        const uniformData = new Float32Array(16 + 16 + 3 + 1);
+        const uniformData = new Float32Array(uniformBufferSize / 4);
         uniformData.set(viewProjection, 0);
         uniformData.set(this.transform, 16);
         uniformData.set(cameraPos, 32);
@@ -190,41 +207,48 @@ export class Mesh {
         
         device.queue.writeBuffer(uniformBuffer, 0, uniformData);
         
+        const lightStructSize = 96;
         const lightBuffer = device.createBuffer({
-            size: 8 * 12 * 4,
+            size: 8 * lightStructSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
         
-        const lightData = new Float32Array(8 * 12);
+        const lightData = new Float32Array((8 * lightStructSize) / 4);
         for (let i = 0; i < Math.min(lights.length, 8); i++) {
             const light = lights[i];
-            const offset = i * 12;
-            lightData[offset] = light.type === 'directional' ? 0 : 1;
+            const structOffset = i * (lightStructSize / 4);
+            
+            lightData[structOffset] = light.type === 'directional' ? 0 : 1;
+            
             if (light.position) {
-                lightData.set(light.position, offset + 1);
+                lightData.set(light.position, structOffset + 4);
             } else {
-                lightData.set([0, 0, 0], offset + 1);
+                lightData.set([0, 0, 0], structOffset + 4);
             }
+            
             if (light.direction) {
-                lightData.set(light.direction, offset + 4);
+                lightData.set(light.direction, structOffset + 8);
             } else {
-                lightData.set([0, -1, 0], offset + 4);
+                lightData.set([0, -1, 0], structOffset + 8);
             }
-            lightData.set(light.color, offset + 7);
-            lightData[offset + 10] = light.intensity || 1.0;
-            lightData[offset + 11] = light.range || 10.0;
+            
+            lightData.set(light.color, structOffset + 12);
+            lightData[structOffset + 16] = light.intensity || 1.0;
+            lightData[structOffset + 20] = light.range || 10.0;
         }
         device.queue.writeBuffer(lightBuffer, 0, lightData);
         
         const materialBuffer = device.createBuffer({
-            size: 16 + 4 + 4,
+            size: 32,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
         
-        const materialData = new Float32Array(6);
+        const materialData = new Float32Array(8);
         materialData.set(this.material.baseColor, 0);
         materialData[4] = this.material.metallic;
         materialData[5] = this.material.roughness;
+        materialData[6] = 0.0;
+        materialData[7] = 0.0;
         device.queue.writeBuffer(materialBuffer, 0, materialData);
         
         const bindGroup = device.createBindGroup({

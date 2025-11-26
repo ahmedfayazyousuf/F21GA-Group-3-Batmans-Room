@@ -27,9 +27,14 @@ class App {
             await this.renderer.init();
             
             this.scene = new Scene();
-            this.camera = new Camera(this.canvas.width / this.canvas.height);
+            const aspect = this.canvas.width > 0 ? this.canvas.width / this.canvas.height : 16/9;
+            this.camera = new Camera(aspect);
             this.camera.position = [0, 2, 5];
             this.camera.target = [0, 0, 0];
+            
+            this.renderer.onResize((width, height) => {
+                this.camera.setAspect(width / height);
+            });
             
             this.input = new InputHandler(this.canvas);
             this.input.onMouseMove = (dx, dy) => {
@@ -37,6 +42,16 @@ class App {
             };
             
             await this.loadScene();
+            
+            console.log('Scene meshes:', this.scene.meshes.length);
+            console.log('Camera position:', this.camera.position);
+            console.log('Camera target:', this.camera.target);
+            console.log('Lights:', this.scene.lights.length);
+            
+            for (let i = 0; i < this.scene.meshes.length; i++) {
+                const mesh = this.scene.meshes[i];
+                console.log(`Mesh ${i}: has material:`, !!mesh.material, 'vertices:', mesh.vertices?.length);
+            }
             
             this.loadingEl.style.display = 'none';
             this.uiEl.style.display = 'block';

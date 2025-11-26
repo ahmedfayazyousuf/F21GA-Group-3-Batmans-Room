@@ -15,7 +15,6 @@ export class Scene {
     
     async createDefaultScene(renderer) {
         const floor = this.createPlane(10, 10);
-        const floor = this.createPlane(10, 10);
         floor.transform = mat4.translate(mat4.identity(), [0, 0, 0]);
         floor.material = new Material(renderer.device, {
             baseColor: [0.2, 0.2, 0.3, 1.0],
@@ -36,32 +35,32 @@ export class Scene {
         });
         this.meshes.push(wall1);
         
-        const box = this.createBox(1, 1, 1);
-        box.transform = mat4.translate(mat4.identity(), [0, 0.5, 0]);
+        const box = this.createBox(2, 2, 2);
+        box.transform = mat4.translate(mat4.identity(), [0, 1, 0]);
         box.material = new Material(renderer.device, {
-            baseColor: [0.8, 0.2, 0.2, 1.0],
-            metallic: 0.5,
-            roughness: 0.3,
+            baseColor: [1.0, 0.5, 0.5, 1.0],
+            metallic: 0.0,
+            roughness: 0.5,
         });
         this.meshes.push(box);
         
         this.lights = [
             {
                 type: 'directional',
-                direction: vec3.normalize([0.5, -1, 0.5]),
-                color: [1.0, 1.0, 0.95],
-                intensity: 1.0,
+                direction: vec3.normalize([0.0, -1.0, 0.0]),
+                color: [1.0, 1.0, 1.0],
+                intensity: 1.5,
             },
             {
                 type: 'point',
-                position: [2, 3, 2],
-                color: [1.0, 0.8, 0.6],
-                intensity: 0.5,
-                range: 10.0,
+                position: [0, 3, 0],
+                color: [1.0, 1.0, 1.0],
+                intensity: 1.0,
+                range: 20.0,
             },
         ];
         
-        this.initPostProcess(renderer);
+        this.initPostProcess(renderer.device);
     }
     
     createPlane(width, height) {
@@ -171,8 +170,24 @@ export class Scene {
     }
     
     render(pass, camera, device) {
+        if (this.meshes.length === 0) {
+            console.warn('No meshes to render');
+            return;
+        }
+        
+        let renderedCount = 0;
         for (const mesh of this.meshes) {
-            mesh.render(pass, camera, this.lights, this.lightsEnabled, device);
+            try {
+                if (mesh.material) {
+                    mesh.render(pass, camera, this.lights, this.lightsEnabled, device);
+                    renderedCount++;
+                }
+            } catch (error) {
+                console.error('Mesh render error:', error, mesh);
+            }
+        }
+        if (renderedCount === 0 && this.meshes.length > 0) {
+            console.warn('No meshes rendered - all missing materials?');
         }
     }
     

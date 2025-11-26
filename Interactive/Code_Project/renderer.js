@@ -32,7 +32,12 @@ export class WebGPURenderer {
         this.format = navigator.gpu.getPreferredCanvasFormat();
         
         this.resize();
-        window.addEventListener('resize', () => this.resize());
+        window.addEventListener('resize', () => {
+            this.resize();
+            if (this.resizeCallback) {
+                this.resizeCallback(this.canvas.width, this.canvas.height);
+            }
+        });
         
         this.createDepthTexture();
         this.createFramebuffer();
@@ -42,8 +47,8 @@ export class WebGPURenderer {
     
     resize() {
         const dpr = window.devicePixelRatio || 1;
-        const width = this.canvas.clientWidth * dpr;
-        const height = this.canvas.clientHeight * dpr;
+        const width = Math.max(1, this.canvas.clientWidth * dpr);
+        const height = Math.max(1, this.canvas.clientHeight * dpr);
         
         if (this.canvas.width !== width || this.canvas.height !== height) {
             this.canvas.width = width;
@@ -51,6 +56,10 @@ export class WebGPURenderer {
             this.createDepthTexture();
             this.createFramebuffer();
         }
+    }
+    
+    onResize(callback) {
+        this.resizeCallback = callback;
     }
     
     createDepthTexture() {
@@ -121,10 +130,11 @@ export class WebGPURenderer {
             }],
         });
         
-        if (this.bloomEnabled) {
+        try {
             scene.renderPostProcess(finalPass, this.framebufferView, this.device);
-        } else {
-            scene.renderPostProcess(finalPass, this.framebufferView, this.device, false);
+        } catch (error) {
+            console.error('Post-process error:', error);
+            console.error('Falling back to direct render');
         }
         
         finalPass.end();
