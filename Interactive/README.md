@@ -2,6 +2,12 @@
 
 This is the interactive WebGPU application for exploring the Batman's Room diorama. The application demonstrates real-time 3D rendering, multiple shader techniques, framebuffer effects, and interactive exploration.
 
+## Explanation Video
+
+An explanation video demonstrating the interactive application, all features, and controls is available. You can download it directly from:
+
+**Download:** [Explanation_Video.mp4](https://github.com/ahmedfayazyousuf/F21GA-Group-3-Batmans-Room/blob/main/Interactive/Explanation_Video.mp4)
+
 ## Quick Start
 
 ### Prerequisites
@@ -369,7 +375,7 @@ See `DEVELOPMENT_NOTES.md` for detailed version history and challenges faced.
 - [x] Include framebuffer effects (bloom, tone mapping, color grading)
 - [x] Interaction using keys and/or mouse
 - [x] Show incremental work (documented in DEVELOPMENT_NOTES.md)
-- [ ] Record explanation video (10 minutes max)
+- [x] Record explanation video (10 minutes max)
 
 ## Running the Application
 
