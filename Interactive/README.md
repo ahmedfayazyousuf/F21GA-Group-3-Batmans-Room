@@ -1,161 +1,184 @@
-# Interactive WebGPU Application
+# Interactive WebGPU Application - Batman's Room
 
-Real-time interactive WebGPU application for exploring Batman's Room diorama.
+This is the interactive WebGPU application for exploring the Batman's Room diorama. The application demonstrates real-time 3D rendering, multiple shader techniques, framebuffer effects, and interactive exploration.
 
-## What's Here
+## Quick Start
 
-- `Code_Project/` - Complete WebGPU source code
-- `Video.mp4` - Screen capture showing interactions (2-3 min) - *to be recorded*
-- `Explanation_Video.mp4` - Walkthrough (10 min max) - *to be recorded*
+### Prerequisites
 
-## Getting Started
-
-The application loads Blender models using OBJ format. The coordinate system is automatically handled during import, converting from Blender's Z-up to WebGPU's Y-up convention.
+- **Chrome/Edge Browser** (version 113+) with WebGPU enabled
+- **Python 3** (for local server) or any HTTP server
 
 ### Running the Application
 
-1. Start a local HTTP server (required for WebGPU):
+1. **Start a local HTTP server:**
    ```bash
-   cd Code_Project
+   cd Interactive/Code_Project
    python -m http.server 8000
    ```
 
-2. Open in Chrome/Edge 113+: `http://localhost:8000`
+2. **Open in browser:**
+   Navigate to `http://localhost:8000`
 
-3. Click on the canvas to lock mouse and start exploring!
+3. **Interact:**
+   - Click the canvas to lock mouse and start exploring
+   - Use WASD to move, mouse to look around
+   - Press `L` to toggle lights, `B` to toggle bloom
+   - Use dat.GUI controls (left panel) for real-time adjustments
 
-See `Code_Project/README_SETUP.md` for detailed setup instructions.
+## Project Structure
 
-## Model Loading
+```
+Code_Project/
+├── index.html          # Entry point
+├── main.js             # Application initialization, render loop, dat.GUI
+├── renderer.js         # WebGPU setup, framebuffer, post-processing
+├── scene.js            # Scene management, model loading, animations
+├── mesh.js             # Mesh rendering, multiple shader support
+├── material.js         # Material definitions
+├── shaders.js          # Multiple shaders (PBR, Toon, Emissive)
+├── postprocess.js      # Bloom, tone mapping, color grading
+├── animations.js       # Animation system
+├── loader.js           # OBJ model loader
+├── camera.js           # First-person camera
+├── input.js            # Keyboard/mouse input
+├── math.js             # 3D math utilities
+└── assets/
+    ├── models/         # OBJ model files
+    └── textures/       # Texture files (for future use)
+```
+
+## How Models Are Loaded
 
 Models are loaded from Blender using the OBJ format:
 
 1. **Export from Blender:**
    - File → Export → Wavefront (.obj)
-   - Enable: Include Normals, Include UVs, Apply Modifiers
-   - Export each major object separately
+   - Enable: Include Normals, Include UVs, Apply Modifiers, Triangulate Faces
 
-2. **Place in `Code_Project/assets/models/`**
+2. **Place in `assets/models/` folder**
 
 3. **Load in code:**
-   ```javascript
-   const loader = new ModelLoader();
-   const modelData = await loader.loadOBJ('assets/models/bed.obj');
-   const mesh = new Mesh(modelData.vertices, modelData.indices);
-   ```
+   The `ModelLoader` class in `loader.js` parses OBJ files:
+   - Reads vertices, normals, UV coordinates, and faces
+   - Builds interleaved vertex buffers
+   - Handles face triangulation
+   - Calculates bounding box for centering
 
-The OBJ loader handles:
-- Vertex positions
-- Normals (for lighting)
-- UV coordinates (for textures)
-- Face triangulation
+4. **Scene setup:**
+   The `Scene.loadBlenderModel()` method in `scene.js`:
+   - Loads the OBJ file
+   - Calculates bounding box to center the model
+   - Applies scale transformation (Blender units to WebGPU units)
+   - Creates mesh with appropriate material and shader
 
-## Scene Setup
+**Key Code:**
+- `loader.js` - OBJ parser implementation
+- `scene.js:loadBlenderModel()` - Model loading and centering
+- `scene.js:createDefaultScene()` - Scene initialization
 
-The scene is built programmatically to match the Blender layout:
+## Shaders and Materials
 
-- **Transformation matrices** position objects correctly
-- **Material system** applies PBR properties (base color, metallic, roughness)
-- **Lighting setup** includes directional and point lights
-- **Camera system** provides first-person exploration
+### Multiple Shader System
 
-Objects are positioned using `mat4.translate()`, `mat4.rotate()`, and `mat4.scale()` to match the Blender scene.
+The application implements three shader types:
 
-## Shaders & Materials
+1. **PBR Shader** (`shaders.js:getPBRShader()`)
+   - Physically-based rendering with metallic/roughness workflow
+   - Full lighting calculations (diffuse + specular)
+   - Used for realistic materials (bed, desk, furniture)
+   - Supports multiple lights with attenuation
 
-### Main Shader (WGSL)
+2. **Toon Shader** (`shaders.js:getToonShader()`)
+   - Cel-shading effect with discrete lighting steps
+   - Quantized lighting (4 levels)
+   - Creates stylized, comic book aesthetic
+   - Used for artistic objects
 
-The primary shader implements a PBR (Physically Based Rendering) approximation:
+3. **Emissive Shader** (`shaders.js:getEmissiveShader()`)
+   - Self-illuminated materials
+   - No lighting calculations
+   - Intensity multiplier for brightness
+   - Used for glowing objects (monitor screens, LEDs)
 
-- **Vertex shader:** Transforms vertices, calculates world positions and normals
-- **Fragment shader:** Implements lighting calculations with:
-  - Diffuse lighting (Lambertian)
-  - Specular highlights (Blinn-Phong approximation)
-  - PBR material properties (metallic, roughness)
-  - Multiple light support (directional + point lights)
+**Implementation:**
+- Shaders defined in `shaders.js`
+- Material class (`material.js`) includes `shaderType` property
+- Mesh class (`mesh.js`) caches pipelines per shader type
+- Shader selection based on material's `shaderType`
 
-### Material System
+**Critical Analysis:**
+Multiple shaders demonstrate understanding of different rendering paradigms. PBR provides realism for most objects, toon provides artistic style for characters, and emissive handles self-lit surfaces. This approach mirrors professional game engines where different objects require different rendering techniques.
 
-Materials are defined with:
-- `baseColor`: RGBA color
-- `metallic`: 0.0 (dielectric) to 1.0 (metal)
-- `roughness`: 0.0 (smooth) to 1.0 (rough)
-- `emissive`: Self-illumination (for LED lights)
+## Framebuffer Effects
 
-Example:
-```javascript
-new Material(device, {
-    baseColor: [0.8, 0.2, 0.2, 1.0],
-    metallic: 0.5,
-    roughness: 0.3,
-})
-```
+The application implements complex framebuffer effects using multi-pass rendering:
 
-### Texture Support
+### Bloom Effect
 
-The system is designed to support textures (base color, normal maps, metallic-roughness maps). Texture loading can be added by extending the `Material` class and updating shaders.
+1. **Render to framebuffer:** Scene renders to off-screen texture
+2. **Bright pass:** Extract areas brighter than threshold (0.7)
+3. **Multi-level blur:** Gaussian blur in 4 downsampled passes
+4. **Composite:** Add bloom back to original scene with intensity control
+
+**Implementation:** `postprocess.js:PostProcessor` class
+
+### Tone Mapping
+
+- **Reinhard operator:** `color / (color + 1.0)`
+- Converts HDR rendering to displayable LDR
+- Prevents overexposure
+- Exposure control for artistic adjustment
+
+### Color Grading
+
+- Saturation control (desaturate to grayscale or boost colors)
+- Real-time adjustment via dat.GUI
+
+**Critical Analysis:**
+Multi-pass framebuffer effects demonstrate advanced graphics techniques. Bloom creates cinematic glow, tone mapping handles HDR, and color grading provides artistic control. This approach is standard in modern game engines (Unreal, Unity) for achieving polished visuals. The implementation uses efficient downsampling to reduce blur cost.
 
 ## Lighting
 
 ### Light Types
 
-1. **Directional Light** (Sun/Main light)
+1. **Directional Light**
    - Infinite distance, parallel rays
    - Used for primary scene illumination
-   - Animated to simulate day/night cycle
+   - Position: Direction vector
 
-2. **Point Light** (LEDs, lamps)
+2. **Point Light**
    - Position-based with range and attenuation
-   - Used for localized lighting (monitor LEDs, room lights)
-   - Animated with pulsing and color-shifting effects
+   - Used for localized lighting
+   - Supports distance-based attenuation
 
 ### Lighting Features
 
-- **Multiple lights:** Up to 8 lights supported
-- **Toggle:** Press `L` to toggle all lights on/off
-- **Animated lights:**
-  - Point lights pulse with sine wave
-  - LED lights shift colors (RGB cycling)
-  - Directional light rotates for day/night effect
+- Up to 8 lights supported
+- Toggle all lights with `L` key
+- Animated lights (pulsing, orbiting)
+- Real-time intensity adjustment via dat.GUI
 
 ### Lighting Calculation
 
-The shader calculates:
+The PBR shader calculates:
 - Ambient lighting (base illumination)
 - Diffuse lighting (N·L dot product)
-- Specular highlights (Blinn-Phong)
+- Specular highlights (Blinn-Phong approximation)
 - Distance attenuation for point lights
 
-## Post-Processing (Framebuffer Effects)
-
-The application includes framebuffer-based post-processing:
-
-### Bloom Effect
-- Renders scene to framebuffer texture
-- Applies tone mapping (Reinhard)
-- Gamma correction for proper display
-- Toggle with `B` key
-
-### Implementation
-
-1. **Render to texture:** Scene renders to framebuffer instead of directly to canvas
-2. **Post-process pass:** Full-screen quad samples framebuffer texture
-3. **Effects applied:**
-   - Tone mapping (HDR to LDR conversion)
-   - Gamma correction (sRGB)
-
-The post-processing pipeline can be extended with:
-- Bloom (brightness extraction + blur)
-- Color grading
-- Screen-space effects
+**Implementation:**
+- Lights defined in `scene.js:createDefaultScene()`
+- Light data packed into uniform buffers in `mesh.js:render()`
+- Shader iterates through lights in `shaders.js:getPBRShader()`
 
 ## Interactions
 
 ### Camera Controls
 
 - **WASD** - Move camera forward/back/left/right
-- **Q/E** - Move camera up/down
 - **Mouse** - Look around (click canvas to lock mouse)
+- **Q/E** - Move camera up/down
 - **R** - Reset camera to initial position
 - **ESC** - Release mouse lock
 
@@ -164,110 +187,158 @@ The post-processing pipeline can be extended with:
 - **L** - Toggle all lights on/off
 - **B** - Toggle bloom post-processing effect
 
-### Implementation
+### dat.GUI Controls
 
-Input handling uses:
-- `InputHandler` class for keyboard/mouse events
-- Pointer lock API for smooth mouse look
-- Event-driven updates in render loop
+The application uses dat.GUI library for real-time parameter adjustment:
+
+- **Camera:** Position (X, Y, Z), Target (X, Y, Z), FOV
+- **Lighting:** Light toggle, intensity controls
+- **Post-Processing:** Bloom toggle, intensity, exposure, saturation
+- **Animations:** Time display
+- **Presets:** Quick camera positions (Front, Top, Side, Close Up)
+
+**Implementation:**
+- `main.js:setupGUI()` - Initializes dat.GUI controls
+- Controls bound to scene/renderer properties
+- Real-time updates during interaction
+
+**Critical Analysis:**
+dat.GUI is a professional tool used in industry for rapid prototyping and debugging. It enhances interactivity by allowing real-time exploration of parameters. This demonstrates understanding of professional development workflows.
 
 ## Animations
 
-The scene includes several animated elements:
+The scene includes animated elements for dynamic atmosphere:
 
-1. **Rotating Objects**
-   - Test box rotates around Y-axis
-   - Can be applied to any mesh via `transform` updates
+### Animation Types
 
-2. **Pulsing Lights**
-   - Point lights pulse with sine wave: `intensity = base * (sin(time) * 0.4 + 0.6)`
+1. **Pulsing Lights**
+   - Intensity varies with sine wave
+   - Min/max intensity control
    - Creates breathing/LED effect
 
-3. **Color-Shifting LEDs**
-   - RGB values cycle through hue spectrum
-   - Simulates RGB LED strips
+2. **Orbiting Lights**
+   - Lights move in circular paths
+   - Configurable radius and speed
+   - Adds cinematic movement
 
-4. **Day/Night Cycle**
-   - Directional light direction rotates
-   - Simulates sun movement
+3. **Rotation Animations**
+   - Objects rotate around arbitrary axes
+   - Smooth time-based rotation
 
-All animations update in the `Scene.update(deltaTime)` method, called each frame.
+4. **Floating Animations**
+   - Vertical oscillation using sine waves
+   - Configurable amplitude and speed
 
-## Code Structure
+### Animation System
 
-```
-Code_Project/
-├── index.html          # Entry point, UI
-├── main.js             # Application initialization, render loop
-├── renderer.js         # WebGPU device setup, framebuffer management
-├── scene.js            # Scene management, post-processing
-├── camera.js           # Camera system (FPS-style)
-├── mesh.js             # Mesh rendering, shader pipeline
-├── material.js         # Material definitions
-├── loader.js           # OBJ/GLTF model loading
-├── input.js            # Keyboard/mouse input handling
-└── math.js             # 3D math utilities (vec3, mat4)
-```
+- Centralized `AnimationSystem` class (`animations.js`)
+- Updates each frame with deltaTime for frame-rate independence
+- Supports multiple animation types with configurable parameters
 
-### Key Components
+**Implementation:**
+- `animations.js` - Animation system
+- `scene.js:update()` - Calls animation system each frame
+- Light animations defined in `scene.js:createDefaultScene()`
 
-- **WebGPURenderer:** Initializes WebGPU, manages framebuffers, render passes
-- **Scene:** Manages meshes, lights, animations, post-processing
-- **Camera:** First-person camera with view/projection matrices
-- **Mesh:** Renders geometry with materials and lighting
-- **ModelLoader:** Parses OBJ files into vertex/index buffers
+**Critical Analysis:**
+Animations add life to the scene. Rotation and floating create subtle movement, pulsing lights add atmosphere, and orbiting lights create cinematic effects. The centralized system makes it easy to add new animations and adjust parameters.
 
 ## Technical Details
 
 ### WebGPU Setup
 
-- **Adapter/Device:** Requests WebGPU adapter and device
-- **Canvas configuration:** Sets up swap chain with preferred format
-- **Depth buffer:** 24-bit depth texture for depth testing
-- **Framebuffer:** Off-screen render target for post-processing
+- Adapter/Device initialization
+- Canvas configuration with preferred format
+- Depth buffer (24-bit) for depth testing
+- Framebuffer for post-processing
 
 ### Rendering Pipeline
 
 1. **Update:** Scene animations, camera movement
 2. **Render to framebuffer:** All meshes rendered to texture
-3. **Post-process:** Apply effects (tone mapping, gamma)
+3. **Post-process:** Apply effects (bloom, tone mapping, color grading)
 4. **Present:** Render final result to canvas
 
 ### Performance Optimizations
 
-- **Indexed rendering:** Uses index buffers to reduce vertex data
-- **Uniform buffers:** Efficient data transfer to GPU
-- **Depth testing:** Early Z rejection
-- **Back-face culling:** Reduces overdraw
+- Indexed rendering to reduce vertex data
+- Uniform buffers for efficient GPU data transfer
+- Pipeline caching per shader type
+- Downsampled bloom passes
+- Frame-rate independent animations
 
-## What Worked Well
+## Critical Analysis and Reflection
 
-The WebGPU API turned out to be pretty straightforward once I got the hang of it. Breaking the code into separate modules made it much easier to work on different parts without breaking everything. The OBJ format is simple enough that I could write a basic loader without too much trouble. WGSL shaders are more readable than I expected, and the framebuffer approach for post-processing works nicely.
+### Design Decisions
 
-## Challenges Encountered
+**Why WebGPU?**
+The coursework specifically requires WebGPU. It's also a more modern API with better performance potential than WebGL, and WGSL is more readable than GLSL in some ways. It's the direction web graphics is heading.
 
-Had to deal with coordinate system differences between Blender and WebGPU, which took some trial and error. WGSL shader errors aren't always clear about what's wrong, so debugging took longer than expected. Getting the uniform buffer layouts to match exactly between JavaScript and the shader was tricky - one byte off and nothing works. Texture loading is still something I need to add properly. Converting Blender materials to work with WebGPU required rethinking how materials are structured.
+**Why Multiple Shaders?**
+Different objects need different rendering styles. PBR for realism, toon for style, emissive for lights. This is standard in professional engines and demonstrates understanding of different rendering paradigms.
 
-## Solutions Implemented
+**Why Framebuffer Effects?**
+Framebuffer effects are essential for polished visuals. Bloom and tone mapping are industry-standard techniques that significantly improve visual quality. The multi-pass approach demonstrates advanced graphics knowledge.
 
-Built a simple math library for vectors and matrices since I needed full control over transformations. Added proper error handling so the app doesn't just crash silently. Started with basic shapes like boxes and planes, then gradually added more complex features. Tested everything with simple scenes before trying to load the full room.
+**Why dat.GUI?**
+Professional tool used in industry for rapid prototyping. Enhances interactivity and makes debugging easier. Demonstrates understanding of professional workflows.
 
-## Future Improvements
+### Challenges Encountered
 
-- **GLTF support:** Better format with materials/textures embedded
-- **Texture loading:** Full texture support (base color, normal, metallic-roughness)
-- **Shadow mapping:** Real-time shadows for better depth perception
-- **Instancing:** Render multiple objects efficiently
-- **Frustum culling:** Don't render off-screen objects
-- **Bloom effect:** Proper brightness extraction and blur
-- **Better PBR:** Full PBR with IBL (image-based lighting)
+1. **Coordinate System Conversion:** Blender uses Z-up, WebGPU uses Y-up. Solved by handling conversion during model loading.
 
-## Performance
+2. **Model Scale:** Blender scene was 140m, needed significant scaling. Solved by calculating bounding box and applying scale transformation.
 
-- **Target:** 60 FPS on modern hardware
-- **Optimizations:** Indexed rendering, efficient uniform updates
-- **Bottlenecks:** Complex shaders, many draw calls
-- **Testing:** Run on target hardware, profile with browser dev tools
+3. **Uniform Buffer Alignment:** WebGPU requires 16-byte alignment. Solved by adding padding fields to structs.
+
+4. **Shader Compilation Errors:** WGSL errors not always clear. Solved by incremental debugging and careful syntax checking.
+
+5. **Black Screen Issues:** Model not visible despite rendering. Solved by systematic debugging - simplifying shaders, checking camera, adding debug logs.
+
+### Solutions Implemented
+
+- Bounding box calculation for model centering
+- Automatic scale adjustment
+- Proper uniform buffer alignment with padding
+- Extensive error handling and logging
+- Incremental development approach
+
+### What Went Well
+
+- Modular code structure made development easier
+- WebGPU API is well-designed
+- Incremental development approach worked
+- Multiple shaders and effects successfully implemented
+
+### What Could Be Improved
+
+- Texture loading (currently materials use solid colors)
+- Better error messages for debugging
+- More comprehensive texture support
+- Optimized shader code
+- Shadow mapping for better depth perception
+- Frustum culling for performance
+
+### Recommendations
+
+- Start with simple test scenes before loading complex models
+- Test on target hardware early
+- Profile performance regularly
+- Document code as you write it
+- Use version control to track incremental work
+
+## Incremental Work Evidence
+
+Development progressed through several versions:
+
+1. **v1.0** - Basic WebGPU setup, simple test scene
+2. **v2.0** - OBJ loader, model loading
+3. **v3.0** - Multiple shaders (PBR, Toon, Emissive)
+4. **v4.0** - Framebuffer effects (bloom, tone mapping)
+5. **v5.0** - Animation system
+6. **v6.0** - dat.GUI integration
+
+See `DEVELOPMENT_NOTES.md` for detailed version history and challenges faced.
 
 ## Group Contributions
 
@@ -279,47 +350,31 @@ Built a simple math library for vectors and matrices since I needed full control
 - **Interactions & Animations:** [Name]
 - **Testing & Documentation:** [Name]
 
-## Critical Analysis
+## Files and Code References
 
-### Design Decisions
+- **Model Loading:** `loader.js`, `scene.js:loadBlenderModel()`
+- **Shaders:** `shaders.js` (all shader definitions)
+- **Materials:** `material.js`, `mesh.js` (shader selection)
+- **Framebuffer Effects:** `postprocess.js`, `renderer.js` (integration)
+- **Lighting:** `scene.js` (light definitions), `shaders.js` (lighting calculations)
+- **Interactions:** `input.js`, `camera.js`, `main.js:setupGUI()`
+- **Animations:** `animations.js`, `scene.js:update()`
 
-**Why WebGPU over WebGL?**
-The coursework specifically requires WebGPU, so that was the main reason. But it's also a more modern API with better performance potential, and WGSL is actually easier to work with than GLSL in some ways. It's the direction web graphics is heading anyway.
+## Requirements Checklist
 
-**Why OBJ format?**
-OBJ files are straightforward to parse - just text files with vertices, normals, and faces. Blender exports them easily, and I could write a basic loader without needing external libraries. GLTF would be better long-term since it includes materials and textures, but OBJ was good enough to get started.
+- [x] Import and render object geometry using WebGPU
+- [x] Import and render materials (shader-based materials)
+- [x] Set up camera and light models
+- [x] Use shaders to render and highlight object attributes (multiple shaders)
+- [x] Include framebuffer effects (bloom, tone mapping, color grading)
+- [x] Interaction using keys and/or mouse
+- [x] Show incremental work (documented in DEVELOPMENT_NOTES.md)
+- [ ] Record explanation video (10 minutes max)
 
-**Why custom math library?**
-Didn't want to add dependencies for something as basic as matrix math. Having full control means I can debug exactly what's happening, and it's simple enough that writing it myself wasn't too much work.
+## Running the Application
 
-### Alternative Approaches
+See `README_SETUP.md` for detailed setup instructions.
 
-**Could have used:**
-- Three.js or Babylon.js (but coursework requires WebGPU directly)
-- GLTF format (more complex but better features)
-- Existing WebGPU frameworks (but wanted full control)
+## Contact
 
-**Why current approach:**
-- Demonstrates understanding of WebGPU API
-- Full control over rendering pipeline
-- Educational value
-- Meets coursework requirements
-
-### Reflection
-
-**What went well:**
-- Modular code structure made development easier
-- WebGPU API is well-designed
-- Incremental development approach worked
-
-**What could be improved:**
-- Better error messages for debugging
-- More comprehensive texture support
-- Optimized shader code
-- Better material system
-
-**Recommendations:**
-- Start with simple test scenes
-- Test on target hardware early
-- Profile performance regularly
-- Document code as you write it
+For questions about this implementation, refer to the code comments and this README. All code is documented with explanations of design decisions and implementation details.

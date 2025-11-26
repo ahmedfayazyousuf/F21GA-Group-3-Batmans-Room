@@ -1,3 +1,5 @@
+import { PostProcessor } from './postprocess.js';
+
 export class WebGPURenderer {
     constructor(canvas) {
         this.canvas = canvas;
@@ -10,6 +12,7 @@ export class WebGPURenderer {
         this.framebuffer = null;
         this.framebufferTexture = null;
         this.framebufferView = null;
+        this.postProcessor = null;
     }
     
     async init() {
@@ -42,6 +45,14 @@ export class WebGPURenderer {
         this.createDepthTexture();
         this.createFramebuffer();
         
+        // Initialize post-processor for bloom, tone mapping, color grading
+        this.postProcessor = new PostProcessor(
+            this.device,
+            this.canvas.width,
+            this.canvas.height,
+            this.format
+        );
+        
         console.log('WebGPU renderer initialized');
     }
     
@@ -55,6 +66,9 @@ export class WebGPURenderer {
             this.canvas.height = height;
             this.createDepthTexture();
             this.createFramebuffer();
+            if (this.postProcessor) {
+                this.postProcessor.resize(width, height);
+            }
         }
     }
     
@@ -86,6 +100,7 @@ export class WebGPURenderer {
         });
         
         this.framebufferView = this.framebufferTexture.createView();
+        this.postProcessBindGroup = null;
     }
     
     toggleBloom() {
@@ -103,10 +118,11 @@ export class WebGPURenderer {
         
         const commandEncoder = this.device.createCommandEncoder();
         
+        // Render scene to framebuffer for post-processing
         const framebufferPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 view: this.framebufferView,
-                clearValue: { r: 0.05, g: 0.05, b: 0.1, a: 1.0 },
+                clearValue: { r: 0.1, g: 0.1, b: 0.15, a: 1.0 },
                 loadOp: 'clear',
                 storeOp: 'store',
             }],
@@ -121,23 +137,39 @@ export class WebGPURenderer {
         scene.render(framebufferPass, camera, this.device);
         framebufferPass.end();
         
-        const finalPass = commandEncoder.beginRenderPass({
-            colorAttachments: [{
-                view: this.context.getCurrentTexture().createView(),
-                clearValue: { r: 0.05, g: 0.05, b: 0.1, a: 1.0 },
-                loadOp: 'clear',
-                storeOp: 'store',
-            }],
-        });
-        
-        try {
-            scene.renderPostProcess(finalPass, this.framebufferView, this.device);
-        } catch (error) {
-            console.error('Post-process error:', error);
-            console.error('Falling back to direct render');
+        // Apply post-processing effects (bloom, tone mapping, color grading)
+        if (this.postProcessor && this.bloomEnabled) {
+            try {
+                this.postProcessor.process(
+                    commandEncoder,
+                    this.framebufferTexture,
+                    this.context.getCurrentTexture().createView()
+                );
+            } catch (error) {
+                console.warn('Post-processing error, rendering directly:', error);
+                // Fallback: render directly if post-processing fails
+                const fallbackPass = commandEncoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: this.context.getCurrentTexture().createView(),
+                        loadOp: 'clear',
+                        clearValue: { r: 0.1, g: 0.1, b: 0.15, a: 1.0 },
+                        storeOp: 'store',
+                    }],
+                });
+                fallbackPass.end();
+            }
+        } else {
+            // Simple copy if post-processing disabled - render directly for now
+            const directPass = commandEncoder.beginRenderPass({
+                colorAttachments: [{
+                    view: this.context.getCurrentTexture().createView(),
+                    loadOp: 'clear',
+                    clearValue: { r: 0.1, g: 0.1, b: 0.15, a: 1.0 },
+                    storeOp: 'store',
+                }],
+            });
+            directPass.end();
         }
-        
-        finalPass.end();
         
         this.device.queue.submit([commandEncoder.finish()]);
     }

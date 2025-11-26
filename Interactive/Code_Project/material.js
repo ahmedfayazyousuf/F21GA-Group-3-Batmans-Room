@@ -4,6 +4,7 @@ export class Material {
         this.metallic = options.metallic !== undefined ? options.metallic : 0.0;
         this.roughness = options.roughness !== undefined ? options.roughness : 0.5;
         this.emissive = options.emissive || [0, 0, 0];
+        this.shaderType = options.shaderType || 'pbr'; // 'pbr', 'toon', 'emissive'
         
         // Textures (optional, for future use)
         this.baseColorTexture = options.baseColorTexture || null;

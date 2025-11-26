@@ -1,4 +1,5 @@
-import { mat4 } from './math.js';
+import { mat4, vec3 } from './math.js';
+import { getPBRShader, getToonShader, getEmissiveShader } from './shaders.js';
 
 export class Mesh {
     constructor(vertices, indices) {
@@ -9,8 +10,7 @@ export class Mesh {
         
         this.vertexBuffer = null;
         this.indexBuffer = null;
-        this.pipeline = null;
-        this.bindGroup = null;
+        this.pipelines = {}; // Cache pipelines per shader type
     }
     
     init(device) {
@@ -27,125 +27,39 @@ export class Mesh {
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
         });
         device.queue.writeBuffer(this.indexBuffer, 0, this.indices);
-        
-        this.createPipeline(device);
     }
     
-    createPipeline(device) {
+    getPipeline(device, shaderType = 'pbr') {
+        // Cache pipelines per shader type for performance
+        if (!this.pipelines[shaderType]) {
+            this.pipelines[shaderType] = this.createPipeline(device, shaderType);
+        }
+        return this.pipelines[shaderType];
+    }
+    
+    createPipeline(device, shaderType = 'pbr') {
+        // Get shader code based on type - multiple shaders for different effects
+        let shaderCode = '';
+        switch (shaderType) {
+            case 'toon':
+                shaderCode = getToonShader();
+                break;
+            case 'emissive':
+                shaderCode = getEmissiveShader();
+                break;
+            case 'pbr':
+            default:
+                shaderCode = getPBRShader();
+                break;
+        }
+        
         const shaderModule = device.createShaderModule({
-            label: 'Mesh shader',
-            code: `
-                struct Uniforms {
-                    viewProjection: mat4x4<f32>,
-                    model: mat4x4<f32>,
-                    cameraPos: vec3<f32>,
-                    lightCount: u32,
-                };
-                
-                struct Light {
-                    lightType: u32,
-                    _padding1: u32,
-                    _padding2: u32,
-                    _padding3: u32,
-                    position: vec3<f32>,
-                    _padding4: f32,
-                    direction: vec3<f32>,
-                    _padding5: f32,
-                    color: vec3<f32>,
-                    _padding6: f32,
-                    intensity: f32,
-                    _padding7: f32,
-                    _padding8: f32,
-                    _padding9: f32,
-                    range: f32,
-                    _padding10: f32,
-                    _padding11: f32,
-                    _padding12: f32,
-                };
-                
-                struct Material {
-                    baseColor: vec4<f32>,
-                    metallic: f32,
-                    roughness: f32,
-                    _padding: f32,
-                };
-                
-                @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-                @group(0) @binding(1) var<uniform> lights: array<Light, 8>;
-                @group(0) @binding(2) var<uniform> material: Material;
-                
-                struct VertexInput {
-                    @location(0) position: vec3<f32>,
-                    @location(1) normal: vec3<f32>,
-                    @location(2) uv: vec2<f32>,
-                };
-                
-                struct VertexOutput {
-                    @builtin(position) position: vec4<f32>,
-                    @location(0) worldPos: vec3<f32>,
-                    @location(1) normal: vec3<f32>,
-                    @location(2) uv: vec2<f32>,
-                };
-                
-                @vertex
-                fn vs(input: VertexInput) -> VertexOutput {
-                    var out: VertexOutput;
-                    let worldPos = (uniforms.model * vec4<f32>(input.position, 1.0)).xyz;
-                    out.position = uniforms.viewProjection * vec4<f32>(worldPos, 1.0);
-                    out.worldPos = worldPos;
-                    out.normal = normalize((uniforms.model * vec4<f32>(input.normal, 0.0)).xyz);
-                    out.uv = input.uv;
-                    return out;
-                }
-                
-                fn calculateLighting(worldPos: vec3<f32>, normal: vec3<f32>, viewDir: vec3<f32>) -> vec3<f32> {
-                    var totalLight: vec3<f32> = vec3<f32>(0.1, 0.1, 0.15); // Ambient
-                    
-                    for (var i: u32 = 0; i < uniforms.lightCount; i++) {
-                        let light = lights[i];
-                        var lightDir: vec3<f32>;
-                        var attenuation: f32 = 1.0;
-                        
-                        if (light.lightType == 0u) {
-                            lightDir = normalize(-light.direction);
-                        } else {
-                            let toLight = light.position - worldPos;
-                            let dist = length(toLight);
-                            lightDir = normalize(toLight);
-                            attenuation = 1.0 / (1.0 + 0.09 * dist + 0.032 * dist * dist);
-                            attenuation = select(0.0, attenuation, dist < light.range);
-                        }
-                        
-                        let NdotL = max(dot(normal, lightDir), 0.0);
-                        let diffuse = light.color * light.intensity * NdotL * attenuation;
-                        
-                        // Simple specular
-                        let halfDir = normalize(lightDir + viewDir);
-                        let spec = pow(max(dot(normal, halfDir), 0.0), 32.0);
-                        let specular = light.color * light.intensity * spec * attenuation * 0.5;
-                        
-                        totalLight += diffuse + specular;
-                    }
-                    
-                    return totalLight;
-                }
-                
-                @fragment
-                fn fs(in: VertexOutput) -> @location(0) vec4<f32> {
-                    let viewDir = normalize(uniforms.cameraPos - in.worldPos);
-                    let lighting = calculateLighting(in.worldPos, in.normal, viewDir);
-                    
-                    // PBR approximation
-                    let baseColor = material.baseColor.rgb;
-                    let finalColor = baseColor * lighting;
-                    
-                    return vec4<f32>(finalColor, material.baseColor.a);
-                }
-            `,
+            label: `Mesh shader (${shaderType})`,
+            code: shaderCode,
         });
         
-        this.pipeline = device.createRenderPipeline({
-            label: 'Mesh pipeline',
+        const pipeline = device.createRenderPipeline({
+            label: `Mesh pipeline (${shaderType})`,
             layout: 'auto',
             vertex: {
                 module: shaderModule,
@@ -174,6 +88,8 @@ export class Mesh {
                 cullMode: 'back',
             },
         });
+        
+        return pipeline;
     }
     
     render(pass, camera, lights, lightsEnabled, device) {
@@ -186,11 +102,13 @@ export class Mesh {
             this.init(device);
         }
         
-        if (!this.pipeline) {
-            this.createPipeline(device);
-        }
+        // Get shader type from material, default to PBR
+        const shaderType = this.material.shaderType || 'pbr';
+        const pipeline = this.getPipeline(device, shaderType);
         
-        const viewProjection = camera.getViewProjectionMatrix();
+        const view = camera.getViewMatrix();
+        const proj = camera.getProjectionMatrix();
+        const viewProjection = mat4.multiply(proj, view);
         const cameraPos = camera.position;
         
         const uniformBufferSize = 16 * 4 + 16 * 4 + 16 + 16;
@@ -207,36 +125,45 @@ export class Mesh {
         
         device.queue.writeBuffer(uniformBuffer, 0, uniformData);
         
-        const lightStructSize = 96;
-        const lightBuffer = device.createBuffer({
-            size: 8 * lightStructSize,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        });
+        // Light buffer - only needed for PBR shader
+        let lightBuffer = null;
+        let bindGroupEntries = [
+            { binding: 0, resource: { buffer: uniformBuffer } },
+        ];
         
-        const lightData = new Float32Array((8 * lightStructSize) / 4);
-        for (let i = 0; i < Math.min(lights.length, 8); i++) {
-            const light = lights[i];
-            const structOffset = i * (lightStructSize / 4);
+        if (shaderType === 'pbr') {
+            const lightStructSize = 96;
+            lightBuffer = device.createBuffer({
+                size: 8 * lightStructSize,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            });
             
-            lightData[structOffset] = light.type === 'directional' ? 0 : 1;
-            
-            if (light.position) {
-                lightData.set(light.position, structOffset + 4);
-            } else {
-                lightData.set([0, 0, 0], structOffset + 4);
+            const lightData = new Float32Array((8 * lightStructSize) / 4);
+            for (let i = 0; i < Math.min(lights.length, 8); i++) {
+                const light = lights[i];
+                const structOffset = i * (lightStructSize / 4);
+                
+                lightData[structOffset] = light.type === 'directional' ? 0 : 1;
+                
+                if (light.position) {
+                    lightData.set(light.position, structOffset + 4);
+                } else {
+                    lightData.set([0, 0, 0], structOffset + 4);
+                }
+                
+                if (light.direction) {
+                    lightData.set(light.direction, structOffset + 8);
+                } else {
+                    lightData.set([0, -1, 0], structOffset + 8);
+                }
+                
+                lightData.set(light.color, structOffset + 12);
+                lightData[structOffset + 16] = light.intensity || 1.0;
+                lightData[structOffset + 20] = light.range || 10.0;
             }
-            
-            if (light.direction) {
-                lightData.set(light.direction, structOffset + 8);
-            } else {
-                lightData.set([0, -1, 0], structOffset + 8);
-            }
-            
-            lightData.set(light.color, structOffset + 12);
-            lightData[structOffset + 16] = light.intensity || 1.0;
-            lightData[structOffset + 20] = light.range || 10.0;
+            device.queue.writeBuffer(lightBuffer, 0, lightData);
+            bindGroupEntries.push({ binding: 1, resource: { buffer: lightBuffer } });
         }
-        device.queue.writeBuffer(lightBuffer, 0, lightData);
         
         const materialBuffer = device.createBuffer({
             size: 32,
@@ -251,16 +178,14 @@ export class Mesh {
         materialData[7] = 0.0;
         device.queue.writeBuffer(materialBuffer, 0, materialData);
         
+        bindGroupEntries.push({ binding: 2, resource: { buffer: materialBuffer } });
+        
         const bindGroup = device.createBindGroup({
-            layout: this.pipeline.getBindGroupLayout(0),
-            entries: [
-                { binding: 0, resource: { buffer: uniformBuffer } },
-                { binding: 1, resource: { buffer: lightBuffer } },
-                { binding: 2, resource: { buffer: materialBuffer } },
-            ],
+            layout: pipeline.getBindGroupLayout(0),
+            entries: bindGroupEntries,
         });
         
-        pass.setPipeline(this.pipeline);
+        pass.setPipeline(pipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setVertexBuffer(0, this.vertexBuffer);
         pass.setIndexBuffer(this.indexBuffer, 'uint16');

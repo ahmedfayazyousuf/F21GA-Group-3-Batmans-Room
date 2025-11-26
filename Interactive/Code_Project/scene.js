@@ -1,6 +1,8 @@
 import { mat4, vec3 } from './math.js';
 import { Mesh } from './mesh.js';
 import { Material } from './material.js';
+import { ModelLoader } from './loader.js';
+import { AnimationSystem } from './animations.js';
 
 export class Scene {
     constructor() {
@@ -8,41 +10,50 @@ export class Scene {
         this.lights = [];
         this.lightsEnabled = true;
         this.time = 0;
+        this.animationSystem = new AnimationSystem();
         
         this.postProcessPipeline = null;
         this.postProcessBindGroup = null;
     }
     
     async createDefaultScene(renderer) {
-        const floor = this.createPlane(10, 10);
-        floor.transform = mat4.translate(mat4.identity(), [0, 0, 0]);
-        floor.material = new Material(renderer.device, {
-            baseColor: [0.2, 0.2, 0.3, 1.0],
-            metallic: 0.1,
-            roughness: 0.8,
-        });
-        this.meshes.push(floor);
-        
-        const wall1 = this.createPlane(10, 5);
-        wall1.transform = mat4.multiply(
-            mat4.rotate(mat4.identity(), Math.PI / 2, [1, 0, 0]),
-            mat4.translate(mat4.identity(), [0, 2.5, -5])
-        );
-        wall1.material = new Material(renderer.device, {
-            baseColor: [0.15, 0.15, 0.2, 1.0],
-            metallic: 0.0,
-            roughness: 0.9,
-        });
-        this.meshes.push(wall1);
-        
-        const box = this.createBox(2, 2, 2);
-        box.transform = mat4.translate(mat4.identity(), [0, 1, 0]);
-        box.material = new Material(renderer.device, {
-            baseColor: [1.0, 0.5, 0.5, 1.0],
-            metallic: 0.0,
-            roughness: 0.5,
-        });
-        this.meshes.push(box);
+        // Batman's Room Scene - Load the entire scene from Blender
+        try {
+            console.log('Loading Batman room scene...');
+            
+            // Load the entire Batman room scene
+            // Model scale - adjust if model is too large/small
+            // Current scale 0.1 means 140m Blender scene becomes 14m in WebGPU
+            const modelScale = 0.1;
+            const mesh = await this.loadBlenderModel(
+                renderer, 
+                'assets/models/scene_v1.obj', 
+                [0, 0, 0],      // Position: centered at origin
+                [modelScale, modelScale, modelScale]
+            );
+            
+            // Log model info for camera positioning
+            console.log('Model loaded with scale:', modelScale);
+            console.log('Adjust camera position if model not visible');
+            
+            console.log('Mesh loaded with transform:', mesh.transform);
+            
+            console.log('Batman room scene loaded successfully!');
+            
+        } catch (error) {
+            console.error('Error loading Batman room scene:', error);
+            console.log('Make sure scene_v1.obj is in assets/models/ folder');
+            
+            // Fallback: create a simple test scene if loading fails
+            const floor = this.createPlane(10, 10);
+            floor.transform = mat4.translate(mat4.identity(), [0, 0, 0]);
+            floor.material = new Material(renderer.device, {
+                baseColor: [0.2, 0.2, 0.25, 1.0],
+                metallic: 0.0,
+                roughness: 0.8,
+            });
+            this.meshes.push(floor);
+        }
         
         this.lights = [
             {
@@ -57,8 +68,27 @@ export class Scene {
                 color: [1.0, 1.0, 1.0],
                 intensity: 1.0,
                 range: 20.0,
+                animated: true,
+                animationType: 'pulse',
+                animationSpeed: 2.0,
+                minIntensity: 0.5,
+                maxIntensity: 2.0,
             },
         ];
+        
+        // Add animated orbiting light for creative effect
+        this.lights.push({
+            type: 'point',
+            position: [5, 2, 0],
+            color: [0.5, 0.8, 1.0],
+            intensity: 1.5,
+            range: 15.0,
+            animated: true,
+            animationType: 'orbit',
+            animationSpeed: 0.5,
+            orbitCenter: [0, 2, 0],
+            orbitRadius: 5.0,
+        });
         
         this.initPostProcess(renderer.device);
     }
@@ -169,6 +199,29 @@ export class Scene {
         }
     }
     
+    update(deltaTime) {
+        this.time += deltaTime;
+        // Update animations
+        if (this.animationSystem) {
+            this.animationSystem.update(deltaTime);
+        }
+        
+        // Animate lights (pulsing, orbiting)
+        for (let i = 0; i < this.lights.length; i++) {
+            const light = this.lights[i];
+            if (light.animated) {
+                if (light.animationType === 'pulse') {
+                    const pulseValue = (Math.sin(this.time * light.animationSpeed) + 1.0) / 2.0;
+                    light.intensity = light.minIntensity + (light.maxIntensity - light.minIntensity) * pulseValue;
+                } else if (light.animationType === 'orbit') {
+                    const angle = this.time * light.animationSpeed;
+                    light.position[0] = light.orbitCenter[0] + Math.cos(angle) * light.orbitRadius;
+                    light.position[2] = light.orbitCenter[2] + Math.sin(angle) * light.orbitRadius;
+                }
+            }
+        }
+    }
+    
     render(pass, camera, device) {
         if (this.meshes.length === 0) {
             console.warn('No meshes to render');
@@ -176,19 +229,33 @@ export class Scene {
         }
         
         let renderedCount = 0;
-        for (const mesh of this.meshes) {
+        for (let i = 0; i < this.meshes.length; i++) {
+            const mesh = this.meshes[i];
             try {
                 if (mesh.material) {
-                    mesh.render(pass, camera, this.lights, this.lightsEnabled, device);
+                    // Apply rotation animation if exists
+                    let rotationMatrix = null;
+                    if (this.animationSystem) {
+                        rotationMatrix = this.animationSystem.getRotationMatrix(mesh);
+                    }
+                    
+                    if (rotationMatrix) {
+                        const originalTransform = [...mesh.transform];
+                        mesh.transform = mat4.multiply(mesh.transform, rotationMatrix);
+                        mesh.render(pass, camera, this.lights, this.lightsEnabled, device);
+                        mesh.transform = originalTransform;
+                    } else {
+                        mesh.render(pass, camera, this.lights, this.lightsEnabled, device);
+                    }
                     renderedCount++;
+                } else {
+                    console.warn(`Mesh ${i} has no material`);
                 }
             } catch (error) {
-                console.error('Mesh render error:', error, mesh);
+                console.error(`Mesh ${i} render error:`, error);
             }
         }
-        if (renderedCount === 0 && this.meshes.length > 0) {
-            console.warn('No meshes rendered - all missing materials?');
-        }
+        
     }
     
     initPostProcess(device) {
@@ -216,9 +283,7 @@ export class Scene {
                 @fragment
                 fn fs(in: VertexOutput) -> @location(0) vec4<f32> {
                     let color = textureSample(inputTexture, inputSampler, in.uv);
-                    let mapped = color.rgb / (color.rgb + vec3<f32>(1.0));
-                    let gamma = pow(mapped, vec3<f32>(1.0 / 2.2));
-                    return vec4<f32>(gamma, color.a);
+                    return color;
                 }
             `,
         });
@@ -242,24 +307,71 @@ export class Scene {
         if (!this.postProcessPipeline) {
             this.initPostProcess(device);
         }
+    }
+    
+    async loadBlenderModel(renderer, modelPath, position = [0, 0, 0], scale = [1, 1, 1], shaderType = 'pbr') {
+        const loader = new ModelLoader();
+        const modelData = await loader.loadOBJ(modelPath);
         
-        if (!this.postProcessBindGroup) {
-            const sampler = device.createSampler({
-                magFilter: 'linear',
-                minFilter: 'linear',
-            });
-            
-            this.postProcessBindGroup = device.createBindGroup({
-                layout: this.postProcessPipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: inputTexture },
-                    { binding: 1, resource: sampler },
-                ],
-            });
+        // Calculate bounding box to understand model size and center it
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        
+        for (let i = 0; i < modelData.vertices.length; i += 8) {
+            const x = modelData.vertices[i];
+            const y = modelData.vertices[i + 1];
+            const z = modelData.vertices[i + 2];
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+            maxZ = Math.max(maxZ, z);
         }
         
-        pass.setPipeline(this.postProcessPipeline);
-        pass.setBindGroup(0, this.postProcessBindGroup);
-        pass.draw(3, 1, 0, 0);
+        const width = maxX - minX;
+        const height = maxY - minY;
+        const depth = maxZ - minZ;
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+        const centerZ = (minZ + maxZ) / 2;
+        
+        console.log('Model bounds:', {
+            min: [minX, minY, minZ],
+            max: [maxX, maxY, maxZ],
+            size: [width, height, depth],
+            center: [centerX, centerY, centerZ],
+            vertices: modelData.vertices.length / 8
+        });
+        
+        // Center the model by translating it to origin, then apply user position
+        const mesh = new Mesh(modelData.vertices, modelData.indices);
+        
+        // First translate to center, then scale, then apply user position
+        const centerTransform = mat4.translate(mat4.identity(), [-centerX, -centerY, -centerZ]);
+        const scaleTransform = mat4.scale(mat4.identity(), scale);
+        const positionTransform = mat4.translate(mat4.identity(), position);
+        
+        mesh.transform = mat4.multiply(
+            positionTransform,
+            mat4.multiply(scaleTransform, centerTransform)
+        );
+        
+        // Use material with specified shader type
+        mesh.material = new Material(renderer.device, {
+            baseColor: [0.7, 0.7, 0.75, 1.0],  // Light grey
+            metallic: 0.1,
+            roughness: 0.8,
+            shaderType: shaderType,  // PBR, toon, or emissive
+        });
+        mesh.init(renderer.device);
+        
+        this.meshes.push(mesh);
+        return mesh;
     }
 }
+
+
+
+
+
